@@ -1,0 +1,11 @@
+# YouTube API Credentials (sensibel – nicht committen!)
+client_secret.json
+youtube_token.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Settings (benutzerspezifisch)
+convert_mjpeg_settings.json

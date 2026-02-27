@@ -1,0 +1,18 @@
+# Ball Tracking System - Dependencies
+# Python 3.8+ erforderlich
+
+# Computer Vision & ML
+opencv-python>=4.8.0
+numpy>=1.24.0
+ultralytics>=8.0.0  # YOLOv8
+
+# Utilities
+tqdm>=4.65.0  # Fortschrittsbalken
+psutil>=5.9.0  # Für dynamische Speicher-Erkennung
+
+# GUI (convert_mjpeg_gui.py)
+PySide6>=6.5.0
+
+# YouTube Upload (optional, für convert_mjpeg_gui.py Upload-Funktion)
+google-api-python-client>=2.100.0
+google-auth-oauthlib>=1.1.0
