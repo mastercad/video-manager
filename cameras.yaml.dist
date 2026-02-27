@@ -1,0 +1,23 @@
+# Konfiguration: Raspberry Pi Kamera-Quellen und Download-Ziel
+# Pfad kann in der GUI oder per --cameras-config überschrieben werden
+
+# Zielverzeichnis auf dem lokalen Rechner
+destination: /media/andreas/Seagate Expansion Drive/Videos/Fussballverein Wurgwitz/
+
+# Quell-Verzeichnis auf den Raspberry Pis
+source: /home/kaderblick/camera_api/recordings
+
+devices:
+  - name: Kamera1
+    ip: 192.168.178.47
+    username: kaderblick
+    password: kaderblick
+    # ssh_key: ~/.ssh/kaderblick_key   # optional: SSH-Key statt Passwort
+    port: 22
+
+  - name: Kamera2
+    ip: 192.168.178.48
+    username: kaderblick
+    password: kaderblick
+    # ssh_key: ~/.ssh/kaderblick_key
+    port: 22

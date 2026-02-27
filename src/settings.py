@@ -3,11 +3,12 @@
 import json
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
+from typing import Any
 
 # ─── Pfade (relativ zum Projekt-Stammverzeichnis) ────────────────
 _BASE_DIR = Path(__file__).resolve().parent.parent
 
-SETTINGS_FILE = _BASE_DIR / "convert_mjpeg_settings.json"
+SETTINGS_FILE = _BASE_DIR / "settings.json"
 CLIENT_SECRET_FILE = _BASE_DIR / "client_secret.json"
 TOKEN_FILE = _BASE_DIR / "youtube_token.json"
 
@@ -85,11 +86,41 @@ class YouTubeSettings:
     upload_to_youtube: bool = False
 
 
+# ═════════════════════════════════════════════════════════════════
+#  Kamera / Raspberry Pi Download
+# ═════════════════════════════════════════════════════════════════
+
+@dataclass
+class DeviceSettings:
+    """Konfiguration eines einzelnen Raspberry Pi Kamera-Systems."""
+    name: str = ""
+    ip: str = ""
+    port: int = 22
+    username: str = ""
+    password: str = ""
+    ssh_key: str = ""          # Pfad zum privaten SSH-Key (optional)
+
+
+@dataclass
+class CameraSettings:
+    """Globale Download-Einstellungen für alle Kameras."""
+    source: str = "/home/kaderblick/camera_api/recordings"
+    destination: str = ""
+    delete_after_download: bool = False   # Quelldateien nach erfolgreichem DL löschen
+    auto_convert: bool = True             # Nach Download automatisch konvertieren
+    devices: list = field(default_factory=list)   # list[DeviceSettings]
+
+
+# ═════════════════════════════════════════════════════════════════
+#  Gesamt-AppSettings
+# ═════════════════════════════════════════════════════════════════
+
 @dataclass
 class AppSettings:
     video: VideoSettings = field(default_factory=VideoSettings)
     audio: AudioSettings = field(default_factory=AudioSettings)
     youtube: YouTubeSettings = field(default_factory=YouTubeSettings)
+    cameras: CameraSettings = field(default_factory=CameraSettings)
     last_directory: str = ""
 
     def save(self):
@@ -111,6 +142,18 @@ class AppSettings:
                 for k, v in data.get("youtube", {}).items():
                     if hasattr(s.youtube, k):
                         setattr(s.youtube, k, v)
+                cam_data = data.get("cameras", {})
+                for k, v in cam_data.items():
+                    if k == "devices":
+                        s.cameras.devices = [
+                            DeviceSettings(**{
+                                fk: fv for fk, fv in d.items()
+                                if hasattr(DeviceSettings(), fk)
+                            })
+                            for d in (v or [])
+                        ]
+                    elif hasattr(s.cameras, k):
+                        setattr(s.cameras, k, v)
                 s.last_directory = data.get("last_directory", "")
                 return s
             except Exception:

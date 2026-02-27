@@ -2,7 +2,7 @@
 
 Anleitung zur Einrichtung der Google/YouTube API-Credentials für den automatischen Upload aus der GUI (`main.py`).
 
-[← Zurück zur Übersicht](../README.md) · Siehe auch: [GUI-Konverter](convert_mjpeg_gui.md)
+[← Zurück zur Übersicht](../README.md)
 
 ---
 
@@ -18,12 +18,12 @@ Der Upload verwendet die **YouTube Data API v3** mit **OAuth 2.0 (Desktop-App)**
 Beide Dateien liegen im Projektverzeichnis (neben `main.py`):
 
 ```
-utilities/
+video-manager/
 ├── main.py                     ← GUI-Einstiegspunkt
-├── src/                        ← GUI-Paket
+├── src/                        ← Anwendungspaket
 ├── client_secret.json          ← manuell hinterlegen
 ├── youtube_token.json          ← wird automatisch erstellt
-├── convert_mjpeg_settings.json
+├── settings.json
 └── …
 ```
 
@@ -63,7 +63,7 @@ utilities/
 4. **Erstellen** klicken
 5. Im Dialog auf **JSON herunterladen** klicken
 6. Die heruntergeladene Datei umbenennen in **`client_secret.json`**
-7. Die Datei in das `utilities/`-Verzeichnis verschieben (neben `main.py`)
+7. Die Datei in das `video-manager/`-Verzeichnis verschieben (neben `main.py`)
 
 ## Schritt 5: Erster Upload (Token-Erstellung)
 

@@ -404,3 +404,305 @@ class JobEditDialog(QDialog):
         self.job.youtube_title = self.title_edit.text()
         self.job.youtube_playlist = self.playlist_edit.text()
         self.accept()
+
+
+# ═════════════════════════════════════════════════════════════════
+#  Gerät bearbeiten (Unter-Dialog)
+# ═════════════════════════════════════════════════════════════════
+
+class _DeviceEditDialog(QDialog):
+    """Einfaches Formular zum Anlegen / Bearbeiten eines Raspberry Pi Geräts."""
+
+    def __init__(self, parent, device=None):
+        from PySide6.QtWidgets import (
+            QDialogButtonBox, QFormLayout, QGroupBox, QVBoxLayout,
+            QLineEdit, QSpinBox,
+        )
+        from .settings import DeviceSettings
+        super().__init__(parent)
+        self.setWindowTitle("Gerät bearbeiten")
+        self.setMinimumWidth(400)
+
+        dev = device or DeviceSettings()
+        layout = QVBoxLayout(self)
+
+        group = QGroupBox("Verbindungsdetails")
+        form = QFormLayout()
+
+        self.name_edit = QLineEdit(dev.name)
+        form.addRow("Name:", self.name_edit)
+
+        self.ip_edit = QLineEdit(dev.ip)
+        form.addRow("IP-Adresse:", self.ip_edit)
+
+        self.port_spin = QSpinBox()
+        self.port_spin.setRange(1, 65535)
+        self.port_spin.setValue(dev.port)
+        form.addRow("Port:", self.port_spin)
+
+        self.user_edit = QLineEdit(dev.username)
+        form.addRow("Benutzername:", self.user_edit)
+
+        self.pw_edit = QLineEdit(dev.password)
+        self.pw_edit.setPlaceholderText("(leer lassen wenn SSH-Key)")
+        form.addRow("Passwort:", self.pw_edit)
+
+        from PySide6.QtWidgets import QHBoxLayout, QPushButton
+        from PySide6.QtWidgets import QFileDialog
+
+        key_row = QHBoxLayout()
+        self.key_edit = QLineEdit(dev.ssh_key)
+        self.key_edit.setPlaceholderText("(leer lassen wenn Passwort)")
+        key_row.addWidget(self.key_edit)
+        key_browse = QPushButton("…")
+        key_browse.setFixedWidth(32)
+        key_browse.clicked.connect(self._browse_key)
+        key_row.addWidget(key_browse)
+        form.addRow("SSH-Key:", key_row)
+
+        group.setLayout(form)
+        layout.addWidget(group)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Cancel).setText("Abbrechen")
+        buttons.accepted.connect(self._accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _browse_key(self):
+        from PySide6.QtWidgets import QFileDialog
+        path, _ = QFileDialog.getOpenFileName(
+            self, "SSH-Key wählen",
+            str(__import__("pathlib").Path.home() / ".ssh"))
+        if path:
+            self.key_edit.setText(path)
+
+    def _accept(self):
+        if not self.name_edit.text().strip():
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Pflichtfeld", "Bitte einen Namen eingeben.")
+            return
+        if not self.ip_edit.text().strip():
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Pflichtfeld", "Bitte eine IP-Adresse eingeben.")
+            return
+        self.accept()
+
+    def result_device(self):
+        from .settings import DeviceSettings
+        return DeviceSettings(
+            name=self.name_edit.text().strip(),
+            ip=self.ip_edit.text().strip(),
+            port=self.port_spin.value(),
+            username=self.user_edit.text().strip(),
+            password=self.pw_edit.text(),
+            ssh_key=self.key_edit.text().strip(),
+        )
+
+
+# ═════════════════════════════════════════════════════════════════
+#  Kamera-Einstellungen
+# ═════════════════════════════════════════════════════════════════
+
+class CameraSettingsDialog(QDialog):
+    """
+    Dialog zur Verwaltung der Kamera-Einstellungen inkl. SSH-Geräten.
+    Schreibt bei Bestätigung direkt in ``settings.cameras``.
+    Der Aufrufer ist verantwortlich für ``settings.save()``.
+    """
+
+    def __init__(self, parent, settings: AppSettings):
+        from PySide6.QtWidgets import (
+            QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QGroupBox,
+            QLineEdit, QCheckBox, QPushButton, QDialogButtonBox,
+            QTableWidget, QTableWidgetItem, QHeaderView, QFileDialog,
+            QMessageBox,
+        )
+        super().__init__(parent)
+        self.setWindowTitle("Kamera-Einstellungen")
+        self.resize(700, 580)
+        self.setMinimumSize(560, 460)
+
+        self._settings = settings
+        cam = settings.cameras
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(8)
+
+        # ── Pfade ─────────────────────────────────────────────
+        path_group = QGroupBox("Pfade")
+        path_form = QFormLayout()
+
+        self._source_edit = QLineEdit(cam.source)
+        self._source_edit.setPlaceholderText("/home/kaderblick/camera_api/recordings")
+        path_form.addRow("Quellpfad (Pi):", self._source_edit)
+
+        dest_row = QHBoxLayout()
+        self._dest_edit = QLineEdit(cam.destination)
+        dest_row.addWidget(self._dest_edit)
+        dest_browse = QPushButton("…")
+        dest_browse.setFixedWidth(32)
+        dest_browse.clicked.connect(self._browse_dest)
+        dest_row.addWidget(dest_browse)
+        path_form.addRow("Zielordner (lokal):", dest_row)
+
+        path_group.setLayout(path_form)
+        layout.addWidget(path_group)
+
+        # ── Optionen ──────────────────────────────────────────
+        opt_group = QGroupBox("Optionen")
+        opt_layout = QVBoxLayout()
+        self._delete_chk = QCheckBox(
+            "Quelldateien nach erfolgreichem Download löschen")
+        self._delete_chk.setChecked(cam.delete_after_download)
+        opt_layout.addWidget(self._delete_chk)
+        self._convert_chk = QCheckBox(
+            "Nach Download automatisch konvertieren")
+        self._convert_chk.setChecked(cam.auto_convert)
+        opt_layout.addWidget(self._convert_chk)
+        opt_group.setLayout(opt_layout)
+        layout.addWidget(opt_group)
+
+        # ── Geräteliste ───────────────────────────────────────
+        dev_group = QGroupBox("Geräte (Raspberry Pi SSH)")
+        dev_layout = QVBoxLayout()
+
+        self._table = QTableWidget(0, 6)
+        self._table.setHorizontalHeaderLabels(
+            ["Name", "IP", "Port", "Benutzer", "Passwort", "SSH-Key"])
+        hdr = self._table.horizontalHeader()
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(2, QHeaderView.Fixed)
+        hdr.resizeSection(2, 60)
+        hdr.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(5, QHeaderView.Stretch)
+        self._table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self._table.setSelectionBehavior(QTableWidget.SelectRows)
+        self._table.setSelectionMode(QTableWidget.SingleSelection)
+        self._table.verticalHeader().setVisible(False)
+        self._table.doubleClicked.connect(self._edit_device)
+        dev_layout.addWidget(self._table)
+
+        btn_row = QHBoxLayout()
+        add_btn = QPushButton("＋ Hinzufügen")
+        add_btn.clicked.connect(self._add_device)
+        btn_row.addWidget(add_btn)
+        edit_btn = QPushButton("✏ Bearbeiten")
+        edit_btn.clicked.connect(self._edit_device)
+        btn_row.addWidget(edit_btn)
+        remove_btn = QPushButton("✕ Entfernen")
+        remove_btn.clicked.connect(self._remove_device)
+        btn_row.addWidget(remove_btn)
+        btn_row.addStretch()
+        import_btn = QPushButton("Aus cameras.yaml importieren …")
+        import_btn.clicked.connect(self._import_yaml)
+        btn_row.addWidget(import_btn)
+        dev_layout.addLayout(btn_row)
+
+        dev_group.setLayout(dev_layout)
+        layout.addWidget(dev_group, stretch=1)
+
+        # ── Buttons ───────────────────────────────────────────
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Save).setText("Speichern")
+        buttons.button(QDialogButtonBox.Cancel).setText("Abbrechen")
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        self._populate_table()
+
+    # ── Hilfsmethoden ─────────────────────────────────────────
+
+    def _populate_table(self):
+        from PySide6.QtWidgets import QTableWidgetItem
+        devices = self._settings.cameras.devices
+        self._table.setRowCount(len(devices))
+        for row, dev in enumerate(devices):
+            self._table.setItem(row, 0, QTableWidgetItem(dev.name))
+            self._table.setItem(row, 1, QTableWidgetItem(dev.ip))
+            self._table.setItem(
+                row, 2, QTableWidgetItem(str(dev.port)))
+            self._table.setItem(row, 3, QTableWidgetItem(dev.username))
+            self._table.setItem(
+                row, 4, QTableWidgetItem(
+                    "***" if dev.password else "—"))
+            self._table.setItem(
+                row, 5, QTableWidgetItem(dev.ssh_key or "—"))
+
+    def _browse_dest(self):
+        from PySide6.QtWidgets import QFileDialog
+        p = self._dest_edit.text() or str(__import__("pathlib").Path.home())
+        folder = QFileDialog.getExistingDirectory(
+            self, "Zielordner wählen", p)
+        if folder:
+            self._dest_edit.setText(folder)
+
+    def _add_device(self):
+        dlg = _DeviceEditDialog(self)
+        if dlg.exec():
+            self._settings.cameras.devices.append(dlg.result_device())
+            self._populate_table()
+
+    def _edit_device(self):
+        row = self._table.currentRow()
+        if row < 0:
+            return
+        dev = self._settings.cameras.devices[row]
+        dlg = _DeviceEditDialog(self, dev)
+        if dlg.exec():
+            self._settings.cameras.devices[row] = dlg.result_device()
+            self._populate_table()
+
+    def _remove_device(self):
+        from PySide6.QtWidgets import QMessageBox
+        row = self._table.currentRow()
+        if row < 0:
+            return
+        name = self._settings.cameras.devices[row].name
+        if QMessageBox.question(
+                self, "Gerät entfernen",
+                f'Ger\u00e4t "{name}" wirklich entfernen?',
+                QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
+            self._settings.cameras.devices.pop(row)
+            self._populate_table()
+
+    def _import_yaml(self):
+        from PySide6.QtWidgets import QFileDialog, QMessageBox
+        from .downloader import import_from_yaml
+        path, _ = QFileDialog.getOpenFileName(
+            self, "cameras.yaml öffnen", "", "YAML-Dateien (*.yaml *.yml)")
+        if not path:
+            return
+        try:
+            imported = import_from_yaml(path)
+        except Exception as exc:
+            QMessageBox.critical(self, "Import fehlgeschlagen", str(exc))
+            return
+        # Geräte übernehmen (vorhandene beibehalten, neue anhängen)
+        existing_ips = {d.ip for d in self._settings.cameras.devices}
+        added = 0
+        for dev in imported.devices:
+            if dev.ip not in existing_ips:
+                self._settings.cameras.devices.append(dev)
+                existing_ips.add(dev.ip)
+                added += 1
+        if imported.source:
+            self._source_edit.setText(imported.source)
+        if imported.destination:
+            self._dest_edit.setText(imported.destination)
+        self._populate_table()
+        QMessageBox.information(
+            self, "Import",
+            f"{added} neue(s) Gerät(e) importiert.")
+
+    def _save(self):
+        cam = self._settings.cameras
+        cam.source = self._source_edit.text().strip()
+        cam.destination = self._dest_edit.text().strip()
+        cam.delete_after_download = self._delete_chk.isChecked()
+        cam.auto_convert = self._convert_chk.isChecked()
+        self.accept()

@@ -20,7 +20,9 @@ from .delegates import ProgressDelegate
 from .dialogs import (
     VideoSettingsDialog, AudioSettingsDialog,
     YouTubeSettingsDialog, JobEditDialog,
+    CameraSettingsDialog,
 )
+from .download_dialog import DownloadDialog
 
 
 class ConverterApp(QMainWindow):
@@ -62,6 +64,11 @@ class ConverterApp(QMainWindow):
         settings_menu.addAction("Video …", self._open_video_settings)
         settings_menu.addAction("Audio …", self._open_audio_settings)
         settings_menu.addAction("YouTube …", self._open_youtube_settings)
+        settings_menu.addAction("Kameras …", self._open_camera_settings)
+
+        raspi_menu = mb.addMenu("&Raspberry Pi")
+        raspi_menu.addAction(
+            "Videos herunterladen …", self._open_download_dialog)
 
     # ── Toolbar ───────────────────────────────────────────────
     def _build_toolbar(self):
@@ -81,6 +88,8 @@ class ConverterApp(QMainWindow):
 
         tb.addAction("Bearbeiten", self._edit_job)
         tb.addAction("Entfernen", self._remove_selected)
+        tb.addSeparator()
+        tb.addAction("⬇ Herunterladen", self._open_download_dialog)
 
     # ── Zentrales Widget ──────────────────────────────────────
     def _build_central(self):
@@ -248,6 +257,30 @@ class ConverterApp(QMainWindow):
             dlg = JobEditDialog(self, self.jobs[idx])
             dlg.exec()
             self._refresh_table()
+
+    # ── Raspberry Pi Download ─────────────────────────────────
+    def _open_download_dialog(self):
+        dlg = DownloadDialog(self, settings=self.settings)
+        result = dlg.exec()
+        # Heruntergeladene Dateien zur Konvertierungsliste hinzufügen
+        if result and dlg.downloaded_mjpg_files and self.settings.cameras.auto_convert:
+            added = 0
+            existing = {str(j.source_path) for j in self.jobs}
+            for path in dlg.downloaded_mjpg_files:
+                if path not in existing:
+                    self.jobs.append(ConvertJob(source_path=Path(path)))
+                    added += 1
+            if added:
+                self._refresh_table()
+                self.status_label.setText(
+                    f"{added} neue Aufträge aus Pi-Download hinzugefügt")
+                self._start_jobs()
+
+    # ── Kamera-Einstellungen ──────────────────────────────────
+    def _open_camera_settings(self):
+        dlg = CameraSettingsDialog(self, self.settings)
+        if dlg.exec():
+            self.settings.save()
 
     # ── Einstellungs-Dialoge ──────────────────────────────────
     def _open_video_settings(self):

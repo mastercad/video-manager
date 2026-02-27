@@ -8,4 +8,5 @@ __pycache__/
 .venv/
 
 # Settings (benutzerspezifisch)
-convert_mjpeg_settings.json
+settings.json
+cameras.yaml
