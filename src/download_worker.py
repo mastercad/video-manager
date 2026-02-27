@@ -60,7 +60,7 @@ class DownloadWorker(QObject):
 
     @Slot()
     def run(self) -> None:
-        all_mjpg_paths: list[str] = []
+        all_mjpg_paths: list[tuple[str, str]] = []  # (device_name, path)
 
         for device in self._devices:
             if self._cancel.is_set():
@@ -77,8 +77,8 @@ class DownloadWorker(QObject):
                 delete_after_download=self._delete,
             )
             # results: list of (local_dir, base, mjpg_path)
-            mjpg_paths = [r[2] for r in results]
-            all_mjpg_paths.extend(mjpg_paths)
+            for r in results:
+                all_mjpg_paths.append((device.name, r[2]))
             self.device_done.emit(device.name, len(results))
 
         self.finished.emit(len(all_mjpg_paths), all_mjpg_paths)

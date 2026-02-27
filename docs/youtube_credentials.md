@@ -69,12 +69,13 @@ video-manager/
 
 1. In der GUI: **Einstellungen → YouTube** → „Videos auf YouTube hochladen" aktivieren
 2. Mindestens einen Job in der Jobliste anlegen und YouTube-Titel setzen (Doppelklick auf Job)
-3. **▶ Starten** klicken
-4. Beim ersten Upload öffnet sich ein **Browser-Fenster** zur Google-Anmeldung
-5. Mit dem Google-Konto anmelden, das als Testnutzer hinterlegt ist
-6. Zugriff gewähren
-7. Das Token wird automatisch als `youtube_token.json` gespeichert
-8. Ab jetzt läuft der Upload **ohne erneute Anmeldung** (bis das Token abläuft)
+3. Optional: **Playlist-Name** eingeben – die App sucht automatisch nach einer existierenden Playlist mit diesem Namen und legt sie bei Bedarf als *nicht gelistet* neu an
+4. **▶ Starten** klicken
+5. Beim ersten Upload öffnet sich ein **Browser-Fenster** zur Google-Anmeldung
+6. Mit dem Google-Konto anmelden, das als Testnutzer hinterlegt ist
+7. Zugriff gewähren
+8. Das Token wird automatisch als `youtube_token.json` gespeichert
+9. Ab jetzt läuft der Upload **ohne erneute Anmeldung** (bis das Token abläuft)
 
 ---
 

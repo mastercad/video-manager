@@ -1,5 +1,6 @@
 """MJPEG-Konvertierung: Job-Datenklasse und Konvertierungsfunktionen."""
 
+import json
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,12 +21,51 @@ from .ffmpeg_runner import (
 @dataclass
 class ConvertJob:
     source_path: Path
+    job_type: str = "convert"          # "convert" | "download"
     status: str = "Wartend"
     output_path: Optional[Path] = None
     youtube_title: str = ""
     youtube_playlist: str = ""
     error_msg: str = ""
     progress_pct: int = 0
+    device_name: str = ""              # nur für job_type="download"
+
+    def to_dict(self) -> dict:
+        """Serialisiert den Job als JSON-fähiges dict."""
+        return {
+            "source_path": str(self.source_path),
+            "job_type": self.job_type,
+            "status": self.status,
+            "output_path": str(self.output_path) if self.output_path else "",
+            "youtube_title": self.youtube_title,
+            "youtube_playlist": self.youtube_playlist,
+            "device_name": self.device_name,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "ConvertJob":
+        """Erzeugt einen ConvertJob aus einem dict."""
+        return cls(
+            source_path=Path(d["source_path"]),
+            job_type=d.get("job_type", "convert"),
+            status=d.get("status", "Wartend"),
+            output_path=Path(d["output_path"]) if d.get("output_path") else None,
+            youtube_title=d.get("youtube_title", ""),
+            youtube_playlist=d.get("youtube_playlist", ""),
+            device_name=d.get("device_name", ""),
+        )
+
+
+def save_jobs(jobs: list[ConvertJob], path: Path) -> None:
+    """Speichert eine Jobliste als JSON-Datei."""
+    data = [j.to_dict() for j in jobs]
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+
+
+def load_jobs(path: Path) -> list[ConvertJob]:
+    """Lädt eine Jobliste aus einer JSON-Datei."""
+    data = json.loads(path.read_text())
+    return [ConvertJob.from_dict(d) for d in data]
 
 
 # ═════════════════════════════════════════════════════════════════

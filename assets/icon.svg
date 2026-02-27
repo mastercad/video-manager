@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="#2d7d32"/>
+  <circle cx="64" cy="64" r="56" fill="#388e3c"/>
+
+  <!-- Film camera body -->
+  <rect x="22" y="42" width="60" height="44" rx="6" fill="#fafafa"/>
+
+  <!-- Camera lens area -->
+  <circle cx="52" cy="64" r="16" fill="#37474f" stroke="#263238" stroke-width="1.5"/>
+  <circle cx="52" cy="64" r="11" fill="#455a64"/>
+  <circle cx="52" cy="64" r="6" fill="#546e7a"/>
+  <circle cx="52" cy="64" r="2.5" fill="#78909c"/>
+
+  <!-- Camera viewfinder / top -->
+  <rect x="28" y="34" width="18" height="10" rx="3" fill="#e0e0e0"/>
+
+  <!-- Red record dot -->
+  <circle cx="72" cy="50" r="4" fill="#d32f2f"/>
+
+  <!-- Play triangle (conversion arrow) -->
+  <polygon points="92,50 110,64 92,78" fill="#fafafa" opacity="0.95"/>
+
+  <!-- Small football pattern hint on the green -->
+  <circle cx="104" cy="38" r="8" fill="#fafafa" opacity="0.25" stroke="#fafafa" stroke-opacity="0.4" stroke-width="0.5"/>
+  <path d="M104,30.5 L101,34 L107,34 Z M99,36 L96.5,40 L101,41 Z M109,36 L111.5,40 L107,41 Z M99,42 L101,45.5 L96.5,43 Z M109,42 L107,45.5 L111.5,43 Z" fill="#388e3c" opacity="0.3"/>
+</svg>

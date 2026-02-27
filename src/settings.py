@@ -9,6 +9,7 @@ from typing import Any
 _BASE_DIR = Path(__file__).resolve().parent.parent
 
 SETTINGS_FILE = _BASE_DIR / "settings.json"
+SESSION_FILE = _BASE_DIR / "session.json"
 CLIENT_SECRET_FILE = _BASE_DIR / "client_secret.json"
 TOKEN_FILE = _BASE_DIR / "youtube_token.json"
 
@@ -122,6 +123,7 @@ class AppSettings:
     youtube: YouTubeSettings = field(default_factory=YouTubeSettings)
     cameras: CameraSettings = field(default_factory=CameraSettings)
     last_directory: str = ""
+    restore_session: bool = False      # Beim Start letzte Jobliste laden
 
     def save(self):
         SETTINGS_FILE.write_text(
@@ -155,6 +157,7 @@ class AppSettings:
                     elif hasattr(s.cameras, k):
                         setattr(s.cameras, k, v)
                 s.last_directory = data.get("last_directory", "")
+                s.restore_session = data.get("restore_session", False)
                 return s
             except Exception:
                 pass

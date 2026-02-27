@@ -10,3 +10,4 @@ __pycache__/
 # Settings (benutzerspezifisch)
 settings.json
 cameras.yaml
+session.json

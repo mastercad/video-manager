@@ -23,7 +23,8 @@ Weiterführende Doku: [YouTube API – Credentials einrichten](docs/youtube_cred
 - **Fortschrittsanzeige** – Statusbar mit Fortschrittsbalken und ETA-Anzeige
 - **Protokoll** – Scrollbares Log mit detaillierten Meldungen
 - **Abbruch-Funktion** – Laufende Konvertierungen oder Downloads abbrechen
-- **YouTube-Upload** – Automatischer Upload mit Playlist-Verwaltung
+- **YouTube-Upload** – Automatischer Upload mit Playlist-Verwaltung (Playlist wird bei Bedarf angelegt)
+- **Download → Konvertierung → Upload** – Durchgängige Pipeline: Pi-Downloads, Konvertierung und YouTube-Upload in einem Durchlauf
 
 ---
 
@@ -73,8 +74,7 @@ python main.py
 video-manager/
 ├── README.md                       <- Diese Datei
 ├── cameras.yaml                    <- Kamera-Konfiguration (Raspberry Pis)
-├── settings.json                   <- Persistente GUI-Einstellungen (automatisch)
-├── client_secret.json              <- YouTube OAuth (manuell, nicht im Git)
+├── settings.json                   <- Persistente GUI-Einstellungen (automatisch)├── session.json                    ← Letzte Jobliste (automatisch, für Session-Restore)├── client_secret.json              <- YouTube OAuth (manuell, nicht im Git)
 ├── youtube_token.json              <- YouTube OAuth-Token (automatisch, nicht im Git)
 ├── docs/
 │   └── youtube_credentials.md     <- Doku: YouTube-API-Setup
@@ -106,23 +106,25 @@ video-manager/
 
 ```
 +-----------------------------------------------------------------+
-|  Menue: Datei | Einstellungen | Raspberry Pi                   |
+|  Menü: Datei | Einstellungen                                    |
 +-----------------------------------------------------------------+
-|  Toolbar: [+ Dateien] [+ Ordner] [> Starten] [x Abbrechen]    |
-|           [Bearbeiten] [Entfernen]  [v Herunterladen]          |
+|  Toolbar: [＋ Dateien] [＋ Ordner] [＋ Pi-Download]              |
+|           [▶ Starten] [■ Abbrechen] [Bearbeiten] [Entfernen]   |
 +-----------------------------------------------------------------+
 |  Auftragsliste                                                  |
-|  #  | Datei           | Ordner  | Status        | YT-Titel     |
-|  1  | aufnahme_1.mjpg | /pfad/  | Wartend       |              |
-|  2  | aufnahme_2.mjpg | /pfad/  | ████ 65%      |              |
-|  3  | aufnahme_3.mjpg | /pfad/  | Fertig        | Testspiel    |
+|  #  | Typ            | Beschreibung          | Status | YT-Titel|
+|  1  | ⬇ Download     | Kamera1  →  /ziel/    | Wartend| Spiel1  |
+|  2  | ⬇ Download     | Kamera2  →  /ziel/    | Wartend| Spiel1  |
+|  3  | 🔄 Konvertieren | aufnahme_1.mjpg       | ████65%|         |
+|  4  | 🔄 Konvertieren | aufnahme_2.mjpg       | Fertig | Spiel2  |
 +-----------------------------------------------------------------+
 |  Protokoll (scrollbares Log)                                    |
-|  === [1/3] aufnahme_1.mjpg ===                                  |
+|  ⬇ Download von 2 Kamera(s)  →  /ziel/                         |
+|  === [1/2] aufnahme_1.mjpg ===                                  |
 |  Encoder: h264_nvenc (NVIDIA GPU)                               |
 |  Fertig: aufnahme_1.mp4 (234 MB, 45s)                          |
 +-----------------------------------------------------------------+
-|  Statusbar  [████████░░░░] 2/3  ETA 12s  Konvertiere 2/3 ...  |
+|  Statusbar  [████████░░░░] 2/3  ETA 12s                        |
 +-----------------------------------------------------------------+
 ```
 
@@ -130,13 +132,15 @@ video-manager/
 
 | Button | Funktion |
 |--------|----------|
-| **+ Dateien** | Öffnet Dateidialog zum Auswählen von `.mjpg`/`.mjpeg`-Dateien |
-| **+ Ordner** | Fügt alle MJPEG-Dateien eines Ordners hinzu |
-| **> Starten** | Startet die Konvertierung aller wartenden Jobs |
-| **x Abbrechen** | Bricht die laufende Konvertierung ab |
-| **Bearbeiten** | Öffnet YouTube-Metadaten für den ausgewählten Job |
-| **Entfernen** | Entfernt ausgewählte Jobs aus der Liste |
-| **v Herunterladen** | Öffnet den Raspberry Pi Download-Dialog |
+| **＋ Dateien** | Öffnet Dateidialog zum Auswählen von `.mjpg`/`.mjpeg`-Dateien |
+| **＋ Ordner** | Fügt alle MJPEG-Dateien eines Ordners hinzu |
+| **＋ Pi-Download** | Legt Download-Jobs für alle konfigurierten Kameras an |
+| **▶ Starten** | Startet die gesamte Pipeline (Downloads → Konvertierung → Upload) |
+| **■ Abbrechen** | Bricht laufende Verarbeitung ab |
+| **Bearbeiten** | Öffnet YouTube-Metadaten für den ausgewählten Job (Download oder Konvertierung) |
+| **Entfernen** | Entfernt ausgewählte Jobs aus der Liste (Mehrfachauswahl möglich) |
+
+> **Tipp:** Jobs können auch über **Datei → Alle Jobs entfernen** komplett gelöscht werden.
 
 ### Menü
 
@@ -144,63 +148,55 @@ video-manager/
 |------|---------|----------|
 | Datei | Dateien hinzufügen … (Strg+O) | MJPEG-Dateien einzeln auswählen |
 | Datei | Ordner hinzufügen … (Strg+D) | Ordner mit MJPEG-Dateien hinzufügen |
+| Datei | Pi-Downloads hinzufügen (Strg+P) | Download-Jobs für konfigurierte Kameras anlegen |
+| Datei | Jobliste exportieren … (Strg+E) | Aktuelle Jobliste als JSON-Datei speichern |
+| Datei | Jobliste importieren … (Strg+I) | Jobliste aus einer JSON-Datei laden (Einträge werden angehängt) |
 | Datei | Alle Jobs entfernen | Jobliste leeren |
 | Einstellungen | Video … | Video-Kodierung konfigurieren |
 | Einstellungen | Audio … | Audio-Verarbeitung konfigurieren |
 | Einstellungen | YouTube … | YouTube-Upload konfigurieren |
-| Raspberry Pi | Videos herunterladen … | Download-Dialog öffnen |
+| Einstellungen | Kameras … | Raspberry Pi Geräte verwalten |
+| Einstellungen | Allgemein … | Session-Wiederherstellung und allgemeine Optionen |
 
 ---
 
 ## Raspberry Pi Download
 
-Über **Menü → Raspberry Pi → Videos herunterladen …** oder den Toolbar-Button **v Herunterladen**
-öffnet sich ein Dialog zum Herunterladen von Videos von den angebundenen Kamera-Systemen.
+Über **＋ Pi-Download** in der Toolbar oder **Datei → Pi-Downloads hinzufügen** werden
+Download-Jobs für alle konfigurierten Kameras in die Jobliste eingetragen.
 
-### Konfigurationsdatei `cameras.yaml`
+### Kamera-Konfiguration
 
-Die Geräte werden in der Datei `cameras.yaml` im Projektverzeichnis konfiguriert:
+Geräte werden über **Einstellungen → Kameras** verwaltet. Dort können Geräte angelegt, bearbeitet
+und gelöscht werden. Optional lassen sich Geräte aus einer bestehenden `cameras.yaml` importieren.
 
-```yaml
-# Zielverzeichnis auf dem lokalen Rechner
-destination: /media/andreas/Seagate Expansion Drive/Videos/Fussballverein Wurgwitz/
-
-# Quell-Verzeichnis auf den Raspberry Pis
-source: /home/kaderblick/camera_api/recordings
-
-devices:
-  - name: Kamera1
-    ip: 192.168.178.47
-    username: kaderblick
-    password: kaderblick
-    # ssh_key: ~/.ssh/kaderblick_key   # optional: SSH-Key statt Passwort
-    port: 22
-
-  - name: Kamera2
-    ip: 192.168.178.48
-    username: kaderblick
-    password: kaderblick
-    port: 22
-```
+Jedes Gerät benötigt:
 
 | Feld | Beschreibung |
 |------|-------------|
-| `destination` | Lokales Zielverzeichnis; kann im Dialog überschrieben werden |
-| `source` | Verzeichnis auf den Raspberry Pis mit den Aufnahmen |
-| `name` | Anzeigename; wird als Unterordner im Zielverzeichnis verwendet |
-| `ip` | IP-Adresse des Raspberry Pi |
-| `username` | SSH-Benutzername |
-| `password` | SSH-Passwort (optional, wenn `ssh_key` gesetzt) |
-| `ssh_key` | Pfad zum privaten SSH-Key (optional) |
-| `port` | SSH-Port (Standard: 22) |
+| **Name** | Anzeigename; wird als Unterordner im Zielverzeichnis verwendet |
+| **IP** | IP-Adresse des Raspberry Pi |
+| **Port** | SSH-Port (Standard: 22) |
+| **Benutzername** | SSH-Benutzername |
+| **Passwort** | SSH-Passwort (optional, wenn SSH-Key gesetzt) |
+| **SSH-Key** | Pfad zum privaten SSH-Key (optional) |
+
+Zusätzlich werden in den Kamera-Einstellungen **Quellverzeichnis** (auf den Pis) und
+**Zielverzeichnis** (lokal) sowie die Option **Nach Download löschen** konfiguriert.
+
+### Download-Workflow
+
+1. **＋ Pi-Download** → Download-Jobs erscheinen in der Jobliste (Typ: ⬇ Download)
+2. Jobs **bearbeiten** → YouTube-Titel und Playlist-Name setzen
+3. **▶ Starten** → Downloads laufen, anschließend werden automatisch Konvertier-Jobs erzeugt
+4. Konvertier-Jobs **erben** YouTube-Titel und Playlist vom zugehörigen Download-Job
+5. Konvertierung und ggf. YouTube-Upload laufen automatisch durch
 
 ### Download-Verhalten
 
 - Es werden nur **vollständige Aufnahmen** heruntergeladen (`.mjpg` **und** `.wav` müssen vorhanden sein)
 - Bereits vorhandene Dateien werden per **Größenvergleich** geprüft und ggf. übersprungen
 - Fehler bei einem Gerät unterbrechen **nicht** den Download der anderen Geräte
-- Im Dialog können einzelne Geräte per Checkbox **deaktiviert** werden
-- Das Zielverzeichnis kann im Dialog überschrieben werden (ohne die YAML zu ändern)
 - Jede Kamera erhält einen eigenen Unterordner (`<Ziel>/<Kameraname>/`)
 
 ---
@@ -297,7 +293,41 @@ Wenn die WAV-Datei einen abweichenden Namen hat: MJPG `aufnahme.mjpg` + Suffix `
 ## Jobs bearbeiten
 
 Per Doppelklick auf einen Job oder über **Bearbeiten** öffnet sich ein Dialog zur Eingabe von
-YouTube-Metadaten (Titel, Playlist-Name). Diese Felder werden pro Job gesetzt und beim Upload verwendet.
+YouTube-Metadaten. Beide Job-Typen (Download und Konvertierung) können bearbeitet werden.
+
+| Feld | Beschreibung |
+|------|-------------|
+| **YouTube-Titel** | Titel des Videos auf YouTube (max. 100 Zeichen). Bei Download-Jobs wird der Titel auf alle daraus erzeugten Konvertier-Jobs übertragen. |
+| **Playlist** | **Name** der YouTube-Playlist (nicht die ID). Die App sucht automatisch nach einer existierenden Playlist mit diesem Namen. Wird keine gefunden, wird sie als *nicht gelistet* neu angelegt. |
+
+> **Hinweis:** Bei Download-Jobs fungieren die Metadaten als Vorlage – alle automatisch erzeugten
+> Konvertier-Jobs erben YouTube-Titel und Playlist-Name vom jeweiligen Download-Job.
+
+---
+
+## Jobliste importieren / exportieren
+
+Die gesamte Jobliste kann als JSON-Datei gespeichert und wieder geladen werden:
+
+- **Datei → Jobliste exportieren … (Strg+E)** – Speichert alle aktuellen Jobs in eine `.json`-Datei
+- **Datei → Jobliste importieren … (Strg+I)** – Lädt Jobs aus einer `.json`-Datei und hängt sie an die bestehende Liste an
+
+So lassen sich vorbereitete Joblisten teilen oder für wiederkehrende Aufgaben wiederverwenden.
+
+---
+
+## Session wiederherstellen
+
+Beim Beenden der App wird die aktuelle Jobliste automatisch als `session.json` gespeichert.
+Unter **Einstellungen → Allgemein** kann die Option **„Letzte Jobliste beim Start wiederherstellen"**
+aktiviert werden. Dann wird beim nächsten Programmstart die gespeicherte Jobliste automatisch geladen.
+
+| Datei | Beschreibung |
+|-------|-------------|
+| `session.json` | Wird beim Beenden automatisch geschrieben; enthält die Jobliste als JSON |
+
+> **Tipp:** Auch ohne aktivierte Option bleibt `session.json` erhalten und kann jederzeit manuell
+> über **Datei → Jobliste importieren** geladen werden.
 
 ---
 
@@ -306,10 +336,12 @@ YouTube-Metadaten (Titel, Playlist-Name). Diese Felder werden pro Job gesetzt un
 | Status | Bedeutung |
 |--------|-----------|
 | **Wartend** | Noch nicht verarbeitet |
+| **Herunterladen** | Download vom Raspberry Pi läuft |
+| **Heruntergeladen** | Download abgeschlossen, Konvertierung folgt |
 | **Läuft** | Wird gerade konvertiert (mit Fortschrittsbalken) |
-| **Fertig** | Erfolgreich konvertiert |
+| **Fertig** | Erfolgreich verarbeitet |
 | **Übersprungen** | Ausgabedatei existiert bereits (Überschreiben deaktiviert) |
-| **Fehler** | Konvertierung fehlgeschlagen (Details im Log) |
+| **Fehler** | Verarbeitung fehlgeschlagen (Details im Log) |
 
 ---
 
@@ -350,7 +382,8 @@ Die Datei kann manuell bearbeitet werden – ungültige Werte werden durch Stand
     "youtube_audio_bitrate": "128k",
     "upload_to_youtube": false
   },
-  "last_directory": "/media/videos/Aufnahmen"
+  "last_directory": "/media/videos/Aufnahmen",
+  "restore_session": false
 }
 ```
 

@@ -13,13 +13,20 @@ Aufruf:
 
 import sys
 
+from pathlib import Path
+
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from src.app import ConverterApp
 
+_ICON = Path(__file__).resolve().parent / "assets" / "icon.svg"
+
 
 def main():
     app = QApplication(sys.argv)
+    if _ICON.exists():
+        app.setWindowIcon(QIcon(str(_ICON)))
     window = ConverterApp()
     window.show()
     sys.exit(app.exec())

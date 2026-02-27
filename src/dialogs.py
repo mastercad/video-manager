@@ -377,22 +377,46 @@ class JobEditDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
-        group = QGroupBox("YouTube-Metadaten")
-        form = QFormLayout()
+        # ── Info-Bereich ──────────────────────────────────────
+        info_group = QGroupBox(
+            "Download-Auftrag" if job.job_type == "download"
+            else "Konvertier-Auftrag")
+        info_form = QFormLayout()
 
-        file_label = QLabel(job.source_path.name)
-        file_label.setStyleSheet("color: palette(link);")
-        form.addRow("Datei:", file_label)
+        if job.job_type == "download":
+            dev_label = QLabel(job.device_name)
+            dev_label.setStyleSheet("color: palette(link); font-weight: bold;")
+            info_form.addRow("Gerät:", dev_label)
+            dest_label = QLabel(str(job.source_path))
+            info_form.addRow("Zielordner:", dest_label)
+        else:
+            file_label = QLabel(job.source_path.name)
+            file_label.setStyleSheet("color: palette(link);")
+            info_form.addRow("Datei:", file_label)
+
+        info_group.setLayout(info_form)
+        layout.addWidget(info_group)
+
+        # ── YouTube-Metadaten ─────────────────────────────────
+        yt_group = QGroupBox("YouTube-Metadaten")
+        yt_form = QFormLayout()
 
         self.title_edit = QLineEdit(job.youtube_title)
-        form.addRow("YouTube-Titel:", self.title_edit)
+        self.title_edit.setMaxLength(100)
+        if job.job_type == "download":
+            self.title_edit.setPlaceholderText(
+                "Wird auf alle heruntergeladenen Dateien übertragen")
+        yt_form.addRow("YouTube-Titel:", self.title_edit)
 
         self.playlist_edit = QLineEdit(job.youtube_playlist)
-        form.addRow("Playlist:", self.playlist_edit)
+        self.playlist_edit.setPlaceholderText(
+            "Playlist-Name (wird automatisch angelegt)")
+        yt_form.addRow("Playlist:", self.playlist_edit)
 
-        group.setLayout(form)
-        layout.addWidget(group)
+        yt_group.setLayout(yt_form)
+        layout.addWidget(yt_group)
 
+        # ── Buttons ───────────────────────────────────────────
         buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.button(QDialogButtonBox.Cancel).setText("Abbrechen")
@@ -403,6 +427,51 @@ class JobEditDialog(QDialog):
     def _save(self):
         self.job.youtube_title = self.title_edit.text()
         self.job.youtube_playlist = self.playlist_edit.text()
+        self.accept()
+
+
+# ═════════════════════════════════════════════════════════════════
+#  Allgemeine Einstellungen
+# ═════════════════════════════════════════════════════════════════
+
+class GeneralSettingsDialog(QDialog):
+    """Dialog für allgemeine Programmeinstellungen."""
+
+    def __init__(self, parent, settings: AppSettings):
+        super().__init__(parent)
+        self.setWindowTitle("Allgemeine Einstellungen")
+        self.settings = settings
+
+        layout = QVBoxLayout(self)
+
+        group = QGroupBox("Verhalten beim Start")
+        form = QFormLayout()
+
+        self.restore_cb = QCheckBox(
+            "Letzte Jobliste beim Start wiederherstellen")
+        self.restore_cb.setChecked(settings.restore_session)
+        form.addRow("", self.restore_cb)
+
+        hint = QLabel(
+            "Die Jobliste wird beim Beenden automatisch\n"
+            "als session.json gespeichert.")
+        hint.setEnabled(False)
+        form.addRow("", hint)
+
+        group.setLayout(form)
+        layout.addWidget(group)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Save).setText("Speichern")
+        buttons.button(QDialogButtonBox.Cancel).setText("Abbrechen")
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _save(self):
+        self.settings.restore_session = self.restore_cb.isChecked()
+        self.settings.save()
         self.accept()
 
 
