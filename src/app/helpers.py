@@ -462,4 +462,6 @@ def _repair_restored_workflow(restored: Workflow, fallback: Workflow | None) -> 
             restored.name = fallback.name
         if not restored.shutdown_after and fallback.shutdown_after:
             restored.shutdown_after = fallback.shutdown_after
+        if not restored.publish_kaderblick_videos and fallback.publish_kaderblick_videos:
+            restored.publish_kaderblick_videos = fallback.publish_kaderblick_videos
     return restored, repaired_count, dropped_resume_state

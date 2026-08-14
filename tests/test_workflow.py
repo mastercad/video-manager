@@ -144,6 +144,20 @@ class TestWorkflowJob:
         assert "status" not in d
         assert "error_msg" not in d
 
+    def test_workflow_publish_session_is_only_persisted_in_last_workflow(self):
+        workflow = Workflow(
+            jobs=[WorkflowJob(name="Kamera")],
+            started_job_ids=["job-1"],
+            kaderblick_publish_statuses={"42": "error"},
+        )
+
+        assert "started_job_ids" not in workflow.to_dict()
+        runtime = workflow.to_dict(include_runtime=True)
+        restored = Workflow.from_dict(runtime, include_runtime=True)
+
+        assert restored.started_job_ids == ["job-1"]
+        assert restored.kaderblick_publish_statuses == {"42": "error"}
+
     def test_to_dict_contains_core_fields(self):
         job = WorkflowJob(name="Test", encoder="libx264", crf=22)
         d = job.to_dict()
@@ -368,8 +382,17 @@ class TestWorkflow:
     def test_shutdown_after_defaults_false(self):
         wf = Workflow()
         assert wf.shutdown_after is False
+        assert wf.publish_kaderblick_videos is False
         d = wf.to_dict()
         assert d["shutdown_after"] is False
+        assert d["publish_kaderblick_videos"] is False
+
+    def test_publish_kaderblick_option_roundtrip(self):
+        wf = Workflow(publish_kaderblick_videos=True)
+
+        restored = Workflow.from_dict(wf.to_dict())
+
+        assert restored.publish_kaderblick_videos is True
 
     def test_json_valid_utf8(self):
         wf = Workflow(name="Umlaut: äöü ß", job=WorkflowJob(name="Auftrag: Þórsmörk"))

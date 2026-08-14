@@ -297,6 +297,34 @@ def _build_stylesheet() -> str:
         border-color: white;
     }}
 
+    QToolBar QCheckBox#publishKaderblickToggle:checked {{
+        background: {_PRIMARY_PURPLE_SOFT};
+        color: {_PRIMARY_PURPLE_DARK};
+        border: 2px solid white;
+        padding: 5px 11px;
+    }}
+
+    QToolBar QCheckBox#publishKaderblickToggle::indicator:checked {{
+        background: {_PRIMARY_PURPLE_DARK};
+        border-color: {_PRIMARY_PURPLE_DARK};
+    }}
+
+    QToolBar QCheckBox#shutdownToggle:checked {{
+        background: #c0392b;
+        color: white;
+        border: 2px solid white;
+        padding: 5px 11px;
+    }}
+
+    QToolBar QCheckBox#shutdownToggle:checked:hover {{
+        background: #a93226;
+    }}
+
+    QToolBar QCheckBox#shutdownToggle::indicator:checked {{
+        background: white;
+        border-color: white;
+    }}
+
     QWidget#brandWordmark {{
         background: transparent;
     }}

@@ -225,7 +225,8 @@ def _post(url: str, kb, payload: dict, timeout: int = 15) -> dict:
             import ssl
             opener.add_handler(urllib.request.HTTPSHandler(context=ctx))
         with opener.open(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            body = resp.read().decode("utf-8").strip()
+            return json.loads(body) if body else {}
 
     try:
         return _do_post(url)
@@ -299,6 +300,11 @@ def fetch_game_videos(kb, game_id: str) -> list[dict]:
 def post_video(kb, game_id: str, payload: dict) -> dict:
     """Postet ein neues Video zu einem Spiel. Gibt die API-Antwort zurück."""
     return _post(f"{kb.base_url.rstrip('/')}/videos/save/{game_id}", kb, payload)
+
+
+def publish_game_videos(kb, game_id: str) -> dict:
+    """Meldet Kaderblick, dass alle gestarteten Videos des Spiels vorliegen."""
+    return _post(f"{kb.base_url.rstrip('/')}/games/{game_id}/videos/publish", kb, {})
 
 
 # ─────────────────────────────────────────────────────────────────

@@ -216,8 +216,12 @@ def _start_workflow(self, *, active_indices: set[int] | None = None):
         self._workflow.last_run_started_at = ""
         self._workflow.last_run_finished_at = ""
         self._workflow.last_run_elapsed_seconds = 0.0
+        self._workflow.started_job_ids = [job.id for job in active_jobs]
+        self._workflow.kaderblick_publish_statuses = {}
         self._save_last_workflow()
     else:
+        if not self._workflow.started_job_ids:
+            self._workflow.started_job_ids = [job.id for job in active_jobs]
         self._append_log("Fortsetzen vorhandener Workflow-Sitzung …")
 
     self.status_label.setStyleSheet("")
@@ -227,6 +231,7 @@ def _start_workflow(self, *, active_indices: set[int] | None = None):
     self.progress.setValue(0)
 
     self._workflow.shutdown_after = self._shutdown_cb.isChecked()
+    self._workflow.publish_kaderblick_videos = self._publish_kaderblick_cb.isChecked()
     self._wf_thread = QThread(self)
     self._wf_executor = WorkflowExecutor(
         self._workflow,

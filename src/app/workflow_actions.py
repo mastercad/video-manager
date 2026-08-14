@@ -43,6 +43,7 @@ def _apply_workflow(self, wf_path: str):
         return
     self._workflow = workflow
     self._sync_shutdown_checkbox()
+    self._sync_publish_kaderblick_checkbox()
     self._refresh_table()
     self._update_count()
     self._append_log(f"CLI: Workflow geladen aus {path.name}")
@@ -236,6 +237,7 @@ def _load_workflow(self):
         try:
             self._workflow = Workflow.load(Path(path))
             self._sync_shutdown_checkbox()
+            self._sync_publish_kaderblick_checkbox()
             self._refresh_table()
             self._update_count()
             self._append_log(f"Workflow geladen: {path}")
@@ -277,6 +279,7 @@ def _restore_last_workflow(self):
             restored, repaired, dropped = _repair_restored_workflow(restored, None)
             self._workflow = restored
             self._sync_shutdown_checkbox()
+            self._sync_publish_kaderblick_checkbox()
             self._refresh_table()
             self._update_count()
             message = "Letzter Workflow wiederhergestellt"
@@ -294,10 +297,26 @@ def _sync_shutdown_checkbox(self):
     self._shutdown_cb.blockSignals(True)
     self._shutdown_cb.setChecked(checked)
     self._shutdown_cb.blockSignals(False)
+    self._shutdown_cb.setText("⚠ Herunterfahren: AN" if checked else "Herunterfahren: AUS")
+
+
+def _sync_publish_kaderblick_checkbox(self):
+    checked = bool(getattr(self._workflow, "publish_kaderblick_videos", False))
+    self._publish_kaderblick_cb.blockSignals(True)
+    self._publish_kaderblick_cb.setChecked(checked)
+    self._publish_kaderblick_cb.blockSignals(False)
+    self._publish_kaderblick_cb.setText("Kaderblick-Publish: AN" if checked else "Kaderblick-Publish: AUS")
 
 
 def _on_shutdown_toggled(self, checked: bool):
+    self._shutdown_cb.setText("⚠ Herunterfahren: AN" if checked else "Herunterfahren: AUS")
     self._workflow.shutdown_after = bool(checked)
+    self._save_last_workflow()
+
+
+def _on_publish_kaderblick_toggled(self, checked: bool):
+    self._publish_kaderblick_cb.setText("Kaderblick-Publish: AN" if checked else "Kaderblick-Publish: AUS")
+    self._workflow.publish_kaderblick_videos = bool(checked)
     self._save_last_workflow()
 
 

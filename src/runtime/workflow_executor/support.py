@@ -5,6 +5,7 @@ from ...media.converter import ConvertJob
 from ...settings import AppSettings
 from ...workflow import FileEntry, WorkflowJob, graph_has_multiple_sources, graph_reachable_types, graph_source_nodes
 from ...workflow_steps import ExecutorSupport, PreparedOutput
+from ...integrations.kaderblick import publish_game_videos
 
 
 class WorkflowExecutorSupportMixin:
@@ -65,6 +66,61 @@ class WorkflowExecutorSupportMixin:
             if not self._is_finished_step_status(status):
                 return step
         return None
+
+    def _publish_completed_kaderblick_games(
+        self,
+        active: list[tuple[int, WorkflowJob]],
+        run_failures: int,
+    ) -> int:
+        """Veröffentlicht erst, wenn der gesamte gestartete Job-Satz fertig ist."""
+        if not bool(getattr(self._workflow, "publish_kaderblick_videos", False)):
+            return 0
+        if run_failures or self._cancel.is_set():
+            return 0
+
+        started_ids = set(getattr(self._workflow, "started_job_ids", []) or [])
+        if not started_ids:
+            started_ids = {job.id for _index, job in active}
+            self._workflow.started_job_ids = sorted(started_ids)
+
+        active_ids = {job.id for _index, job in active}
+        cohort = [job for job in self._workflow.jobs if job.id in started_ids]
+        if len(cohort) != len(started_ids):
+            self.log_message.emit("⚠ Kaderblick-Publish ausstehend: Ein gestarteter Job fehlt im Workflow.")
+            return 0
+
+        for job in cohort:
+            if self._first_pending_step(job) is not None:
+                return 0
+            if job.id not in active_ids and not str(job.resume_status or "").startswith("Fertig"):
+                return 0
+
+        game_ids: set[str] = set()
+        for job in cohort:
+            if not self._support.job_reaches_type(job, "kaderblick"):
+                continue
+            explicit_ids = [entry.kaderblick_game_id for entry in job.files] if job.files else [""]
+            for explicit_id in explicit_ids:
+                game_id = ExecutorSupport.resolve_kaderblick_game_id(self._settings, job, explicit_id)
+                if game_id:
+                    game_ids.add(game_id)
+
+        statuses = self._workflow.kaderblick_publish_statuses
+        failures = 0
+        for game_id in sorted(game_ids):
+            if statuses.get(game_id) == "done":
+                continue
+            self.log_message.emit(f"📣 Kaderblick: Videos für Spiel {game_id} veröffentlichen …")
+            try:
+                publish_game_videos(self._settings.kaderblick, game_id)
+            except RuntimeError as exc:
+                statuses[game_id] = "error"
+                failures += 1
+                self.log_message.emit(f"❌ Kaderblick-Publish für Spiel {game_id} fehlgeschlagen: {exc}")
+            else:
+                statuses[game_id] = "done"
+                self.log_message.emit(f"✅ Kaderblick: Videos für Spiel {game_id} veröffentlicht")
+        return failures
 
     def _step_precedes(self, job: WorkflowJob, step: str, target_step: str) -> bool:
         planned_steps = self._planned_job_steps(job)

@@ -179,8 +179,23 @@ class WorkflowDialog(QDialog):
 
         bottom_row.addStretch()
 
-        self._shutdown_cb = QCheckBox("Rechner nach Abschluss herunterfahren")
+        self._publish_kaderblick_cb = QCheckBox("Kaderblick nach vollständigem Lauf veröffentlichen")
+        self._publish_kaderblick_cb.setChecked(self._workflow.publish_kaderblick_videos)
+        self._publish_kaderblick_cb.setToolTip(
+            "Wird nur ausgeführt, wenn alle tatsächlich gestarteten Jobs erfolgreich abgeschlossen sind."
+        )
+        bottom_row.addWidget(self._publish_kaderblick_cb)
+
+        self._shutdown_cb = QCheckBox("Herunterfahren: AUS")
         self._shutdown_cb.setChecked(self._workflow.shutdown_after)
+        self._shutdown_cb.setText(
+            "⚠ Herunterfahren: AN" if self._workflow.shutdown_after else "Herunterfahren: AUS"
+        )
+        self._shutdown_cb.toggled.connect(
+            lambda checked: self._shutdown_cb.setText(
+                "⚠ Herunterfahren: AN" if checked else "Herunterfahren: AUS"
+            )
+        )
         bottom_row.addWidget(self._shutdown_cb)
 
         layout.addLayout(bottom_row)
@@ -338,6 +353,7 @@ class WorkflowDialog(QDialog):
 
     def _save_workflow(self) -> None:
         self._workflow.shutdown_after = self._shutdown_cb.isChecked()
+        self._workflow.publish_kaderblick_videos = self._publish_kaderblick_cb.isChecked()
         WORKFLOW_DIR.mkdir(parents=True, exist_ok=True)
         default_name = self._workflow.name or "workflow"
         path, _ = QFileDialog.getSaveFileName(
@@ -363,6 +379,7 @@ class WorkflowDialog(QDialog):
             wf = Workflow.load(Path(path))
             self._workflow = wf
             self._shutdown_cb.setChecked(wf.shutdown_after)
+            self._publish_kaderblick_cb.setChecked(wf.publish_kaderblick_videos)
             self._refresh_job_table()
         except Exception as exc:
             QMessageBox.critical(
@@ -373,10 +390,12 @@ class WorkflowDialog(QDialog):
 
     def _apply_and_close(self) -> None:
         self._workflow.shutdown_after = self._shutdown_cb.isChecked()
+        self._workflow.publish_kaderblick_videos = self._publish_kaderblick_cb.isChecked()
         self.accept()
 
     def _confirm_and_start(self) -> None:
         self._workflow.shutdown_after = self._shutdown_cb.isChecked()
+        self._workflow.publish_kaderblick_videos = self._publish_kaderblick_cb.isChecked()
 
         active_jobs = [job for job in self._workflow.jobs if job.enabled]
         if not active_jobs:
@@ -399,6 +418,9 @@ class WorkflowDialog(QDialog):
         if self._workflow.shutdown_after:
             summary_lines.append(
                 "<b>⚠ Der Rechner wird nach Abschluss heruntergefahren!</b>")
+        if self._workflow.publish_kaderblick_videos:
+            summary_lines.append(
+                "<b>Kaderblick wird nach erfolgreichem Abschluss aller gestarteten Jobs veröffentlicht.</b>")
 
         if QMessageBox.question(
                 self, "Workflow starten?",

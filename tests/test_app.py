@@ -278,6 +278,7 @@ class TestWorkflowShutdown:
         try:
             window._workflow = Workflow(name="Spieltag 23", job=_rich_job(), shutdown_after=False)
             window._shutdown_cb.setChecked(True)
+            assert window._shutdown_cb.text() == "⚠ Herunterfahren: AN"
             window._workflow.last_run_elapsed_seconds = 5.0
             window._save_last_workflow = MagicMock()
 
@@ -292,6 +293,35 @@ class TestWorkflowShutdown:
             dialog_cls.assert_called_once()
             popen.assert_called_once_with(["shutdown", "/s", "/t", "0"])
             assert window._workflow.shutdown_after is True
+        finally:
+            window.close()
+
+
+class TestKaderblickWorkflowPublishOption:
+    def test_toggle_updates_workflow_and_persists(self):
+        window = _new_app()
+        try:
+            window._save_last_workflow = MagicMock()
+
+            window._publish_kaderblick_cb.setChecked(True)
+
+            assert window._workflow.publish_kaderblick_videos is True
+            assert window._publish_kaderblick_cb.text() == "Kaderblick-Publish: AN"
+            window._save_last_workflow.assert_called_once()
+        finally:
+            window.close()
+
+    def test_sync_restores_workflow_value_without_saving(self):
+        window = _new_app()
+        try:
+            window._workflow.publish_kaderblick_videos = True
+            window._save_last_workflow = MagicMock()
+
+            window._sync_publish_kaderblick_checkbox()
+
+            assert window._publish_kaderblick_cb.isChecked() is True
+            assert window._publish_kaderblick_cb.text() == "Kaderblick-Publish: AN"
+            window._save_last_workflow.assert_not_called()
         finally:
             window.close()
 

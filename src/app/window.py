@@ -69,12 +69,14 @@ from .workflow_actions import (
     _remove_selected,
     _resolve_job_name,
     _on_shutdown_toggled,
+    _on_publish_kaderblick_toggled,
     _restore_last_workflow,
     _save_last_workflow,
     _save_workflow,
     _selected_job_row,
     _selected_job_rows,
     _sync_shutdown_checkbox,
+    _sync_publish_kaderblick_checkbox,
 )
 
 if TYPE_CHECKING:
@@ -98,6 +100,7 @@ class ConverterApp(QMainWindow):
         duration_label: QLabel
         progress: QProgressBar
         _shutdown_cb: QCheckBox
+        _publish_kaderblick_cb: QCheckBox
         _wf_executor: WorkflowExecutor | None
         _wf_thread: QThread | None
 
@@ -140,7 +143,9 @@ class ConverterApp(QMainWindow):
         def _persist_workflow_state(self) -> None: ...
         def _restore_last_workflow(self) -> None: ...
         def _sync_shutdown_checkbox(self) -> None: ...
+        def _sync_publish_kaderblick_checkbox(self) -> None: ...
         def _on_shutdown_toggled(self, checked: bool) -> None: ...
+        def _on_publish_kaderblick_toggled(self, checked: bool) -> None: ...
         def _has_resumeable_jobs(self) -> bool: ...
         def _ask_resume_behavior(self) -> QMessageBox.StandardButton: ...
         def _start_selected_workflows(self) -> None: ...
@@ -293,7 +298,9 @@ ConverterApp._save_last_workflow = _save_last_workflow
 ConverterApp._persist_workflow_state = _persist_workflow_state
 ConverterApp._restore_last_workflow = _restore_last_workflow
 ConverterApp._sync_shutdown_checkbox = _sync_shutdown_checkbox
+ConverterApp._sync_publish_kaderblick_checkbox = _sync_publish_kaderblick_checkbox
 ConverterApp._on_shutdown_toggled = _on_shutdown_toggled
+ConverterApp._on_publish_kaderblick_toggled = _on_publish_kaderblick_toggled
 ConverterApp._has_resumeable_jobs = _has_resumeable_jobs
 ConverterApp._ask_resume_behavior = _ask_resume_behavior
 ConverterApp._start_selected_workflows = _start_selected_workflows

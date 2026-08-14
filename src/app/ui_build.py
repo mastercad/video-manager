@@ -88,7 +88,20 @@ def _build_toolbar(self: QMainWindow):
     tb.addAction("Speichern", self._save_workflow)
     tb.addSeparator()
 
-    self._shutdown_cb = QCheckBox("Rechner herunterfahren")
+    self._publish_kaderblick_cb = QCheckBox("Kaderblick-Publish: AUS")
+    self._publish_kaderblick_cb.setObjectName("publishKaderblickToggle")
+    self._publish_kaderblick_cb.setToolTip(
+        "Meldet Kaderblick erst nach erfolgreichem Abschluss aller gestarteten Jobs, dass alle Videos vorliegen."
+    )
+    self._publish_kaderblick_cb.toggled.connect(self._on_publish_kaderblick_toggled)
+    tb.addWidget(self._publish_kaderblick_cb)
+    tb.addSeparator()
+
+    self._shutdown_cb = QCheckBox("Herunterfahren: AUS")
+    self._shutdown_cb.setObjectName("shutdownToggle")
+    self._shutdown_cb.setToolTip(
+        "Wenn aktiviert, wird der Rechner nach einem vollständig erfolgreichen Workflow-Lauf heruntergefahren."
+    )
     self._shutdown_cb.toggled.connect(self._on_shutdown_toggled)
     tb.addWidget(self._shutdown_cb)
 

@@ -416,6 +416,9 @@ def test_workflow_completion_matrix(tmp_path, scenario: StepScenario):
     ), patch(
         "src.workflow_steps.kaderblick_post_step.KaderblickPostStep._post_to_kaderblick",
         return_value=True,
+    ), patch(
+        "src.runtime.workflow_executor.support.publish_game_videos",
+        return_value={},
     ):
         executor.run()
 

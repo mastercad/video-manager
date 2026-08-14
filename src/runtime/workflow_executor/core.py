@@ -176,7 +176,8 @@ class WorkflowExecutor(WorkflowExecutorPipelineMixin, WorkflowExecutorSupportMix
             self.finished.emit(0, 0, 0)
             return
 
-        total_fail = fail
+        publish_fail = self._publish_completed_kaderblick_games(active, fail)
+        total_fail = fail + publish_fail
         icon = "✅" if total_fail == 0 else "❌"
         self.log_message.emit(f"\n{icon} Fertig: {ok} OK, {skip} übersprungen, {total_fail} Fehler")
         self.finished.emit(ok, skip, total_fail)

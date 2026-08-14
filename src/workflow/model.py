@@ -31,6 +31,8 @@ _SESSION_WORKFLOW_FIELDS = {
     "last_run_started_at",
     "last_run_finished_at",
     "last_run_elapsed_seconds",
+    "started_job_ids",
+    "kaderblick_publish_statuses",
 }
 
 
@@ -203,10 +205,13 @@ class Workflow:
     name: str = ""
     jobs: list[WorkflowJob] = field(default_factory=list)
     shutdown_after: bool = False
+    publish_kaderblick_videos: bool = False
     created_at: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
     last_run_started_at: str = ""
     last_run_finished_at: str = ""
     last_run_elapsed_seconds: float = 0.0
+    started_job_ids: list[str] = field(default_factory=list)
+    kaderblick_publish_statuses: dict[str, str] = field(default_factory=dict)
 
     def __init__(
         self,
@@ -214,10 +219,13 @@ class Workflow:
         job: WorkflowJob | None = None,
         jobs: list[WorkflowJob] | None = None,
         shutdown_after: bool = False,
+        publish_kaderblick_videos: bool = False,
         created_at: str | None = None,
         last_run_started_at: str = "",
         last_run_finished_at: str = "",
         last_run_elapsed_seconds: float = 0.0,
+        started_job_ids: list[str] | None = None,
+        kaderblick_publish_statuses: dict[str, str] | None = None,
     ):
         self.name = name
         if jobs is not None:
@@ -227,10 +235,13 @@ class Workflow:
         else:
             self.jobs = []
         self.shutdown_after = shutdown_after
+        self.publish_kaderblick_videos = bool(publish_kaderblick_videos)
         self.created_at = created_at or datetime.now().isoformat(timespec="seconds")
         self.last_run_started_at = last_run_started_at
         self.last_run_finished_at = last_run_finished_at
         self.last_run_elapsed_seconds = float(last_run_elapsed_seconds or 0.0)
+        self.started_job_ids = list(started_job_ids or [])
+        self.kaderblick_publish_statuses = dict(kaderblick_publish_statuses or {})
 
     @property
     def job(self) -> WorkflowJob | None:
@@ -250,6 +261,7 @@ class Workflow:
         payload = {
             "name": self.name,
             "shutdown_after": self.shutdown_after,
+            "publish_kaderblick_videos": self.publish_kaderblick_videos,
             "created_at": self.created_at,
             "job": self.job.to_dict(include_runtime=include_runtime) if self.job is not None else None,
             "jobs": [job.to_dict(include_runtime=include_runtime) for job in self.jobs],
@@ -260,6 +272,8 @@ class Workflow:
                     "last_run_started_at": self.last_run_started_at,
                     "last_run_finished_at": self.last_run_finished_at,
                     "last_run_elapsed_seconds": self.last_run_elapsed_seconds,
+                    "started_job_ids": list(self.started_job_ids),
+                    "kaderblick_publish_statuses": dict(self.kaderblick_publish_statuses),
                 }
             )
         return payload
@@ -285,10 +299,13 @@ class Workflow:
             name=data.get("name", ""),
             jobs=jobs,
             shutdown_after=data.get("shutdown_after", False),
+            publish_kaderblick_videos=data.get("publish_kaderblick_videos", False),
             created_at=data.get("created_at", ""),
             last_run_started_at=data.get("last_run_started_at", "") if include_runtime else "",
             last_run_finished_at=data.get("last_run_finished_at", "") if include_runtime else "",
             last_run_elapsed_seconds=data.get("last_run_elapsed_seconds", 0.0) if include_runtime else 0.0,
+            started_job_ids=data.get("started_job_ids", []) if include_runtime else [],
+            kaderblick_publish_statuses=data.get("kaderblick_publish_statuses", {}) if include_runtime else {},
         )
 
     def save(self, path: Path) -> None:

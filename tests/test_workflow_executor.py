@@ -1717,7 +1717,10 @@ class TestWorkflowStackScenarios:
             convert_enabled=False,
             files=[FileEntry(source_path=str(source))],
         )
-        ex = WorkflowExecutor(Workflow(jobs=[job]), _make_settings())
+        ex = WorkflowExecutor(
+            Workflow(jobs=[job], publish_kaderblick_videos=True),
+            _make_settings(),
+        )
 
         with patch("src.runtime.workflow_executor.run_convert") as mock_convert:
             ex.run()
@@ -1888,8 +1891,10 @@ class TestWorkflowStackScenarios:
 
     @patch("src.workflow_steps.kaderblick_post_step.get_video_id_for_output", return_value="video-123")
     @patch("src.workflow_steps.kaderblick_post_step.kaderblick_post", return_value=True)
+    @patch("src.runtime.workflow_executor.support.publish_game_videos", return_value={})
     def test_kaderblick_runs_only_with_youtube_upload(
         self,
+        mock_publish,
         mock_kaderblick,
         _mock_video_id,
         tmp_path,
@@ -1917,7 +1922,10 @@ class TestWorkflowStackScenarios:
                 {"source": "ytu-1", "target": "kb-1"},
             ],
         )
-        ex = WorkflowExecutor(Workflow(jobs=[job]), _make_settings())
+        ex = WorkflowExecutor(
+            Workflow(jobs=[job], publish_kaderblick_videos=True),
+            _make_settings(),
+        )
 
         with patch("src.runtime.workflow_executor.get_youtube_service", return_value=MagicMock()):
             with patch(
@@ -1927,6 +1935,112 @@ class TestWorkflowStackScenarios:
                 ex.run()
 
         mock_kaderblick.assert_called_once()
+        mock_publish.assert_called_once()
+
+
+class TestKaderblickPublish:
+    @staticmethod
+    def _job(name: str, game_id: str, *, finished: bool = True) -> WorkflowJob:
+        return WorkflowJob(
+            name=name,
+            default_kaderblick_game_id=game_id,
+            resume_status="Fertig" if finished else "Kaderblick fehlgeschlagen",
+            step_statuses={
+                "transfer": "done",
+                "youtube_upload": "done",
+                "kaderblick": "done" if finished else "error",
+            },
+            graph_nodes=[
+                {"id": "src", "type": "source_files"},
+                {"id": "yt", "type": "youtube_upload"},
+                {"id": "kb", "type": "kaderblick"},
+            ],
+            graph_edges=[
+                {"source": "src", "target": "yt"},
+                {"source": "yt", "target": "kb"},
+            ],
+        )
+
+    def test_ignores_configured_but_not_started_job(self):
+        started = self._job("Gestartet", "42")
+        not_started = self._job("Andere Kamera", "42", finished=False)
+        workflow = Workflow(
+            jobs=[started, not_started],
+            started_job_ids=[started.id],
+            publish_kaderblick_videos=True,
+        )
+        executor = WorkflowExecutor(workflow, _make_settings(), active_indices={0})
+
+        with patch("src.runtime.workflow_executor.support.publish_game_videos", return_value={}) as publish:
+            failures = executor._publish_completed_kaderblick_games([(0, started)], 0)
+
+        assert failures == 0
+        publish.assert_called_once_with(executor._settings.kaderblick, "42")
+        assert workflow.kaderblick_publish_statuses == {"42": "done"}
+
+    def test_does_not_publish_when_workflow_option_is_disabled(self):
+        job = self._job("Kamera", "42")
+        workflow = Workflow(jobs=[job], started_job_ids=[job.id])
+        executor = WorkflowExecutor(workflow, _make_settings(), active_indices={0})
+
+        with patch("src.runtime.workflow_executor.support.publish_game_videos") as publish:
+            failures = executor._publish_completed_kaderblick_games([(0, job)], 0)
+
+        assert failures == 0
+        publish.assert_not_called()
+
+    def test_waits_for_failed_started_job(self):
+        finished = self._job("Kamera 1", "42")
+        failed = self._job("Kamera 2", "42", finished=False)
+        workflow = Workflow(
+            jobs=[finished, failed],
+            started_job_ids=[finished.id, failed.id],
+            publish_kaderblick_videos=True,
+        )
+        executor = WorkflowExecutor(workflow, _make_settings(), active_indices={0})
+
+        with patch("src.runtime.workflow_executor.support.publish_game_videos") as publish:
+            failures = executor._publish_completed_kaderblick_games([(0, finished)], 0)
+
+        assert failures == 0
+        publish.assert_not_called()
+
+    def test_resume_publishes_after_last_failed_job_finishes(self):
+        already_finished = self._job("Kamera 1", "42")
+        resumed = self._job("Kamera 2", "42")
+        workflow = Workflow(
+            jobs=[already_finished, resumed],
+            started_job_ids=[already_finished.id, resumed.id],
+            publish_kaderblick_videos=True,
+        )
+        executor = WorkflowExecutor(workflow, _make_settings(), active_indices={1})
+
+        with patch("src.runtime.workflow_executor.support.publish_game_videos", return_value={}) as publish:
+            failures = executor._publish_completed_kaderblick_games([(1, resumed)], 0)
+
+        assert failures == 0
+        publish.assert_called_once()
+
+    def test_failed_publish_is_retried_but_successful_publish_is_not(self):
+        job = self._job("Kamera", "42")
+        workflow = Workflow(
+            jobs=[job],
+            started_job_ids=[job.id],
+            publish_kaderblick_videos=True,
+        )
+        executor = WorkflowExecutor(workflow, _make_settings(), active_indices={0})
+
+        with patch(
+            "src.runtime.workflow_executor.support.publish_game_videos",
+            side_effect=[RuntimeError("offline"), {}],
+        ) as publish:
+            assert executor._publish_completed_kaderblick_games([(0, job)], 0) == 1
+            assert workflow.kaderblick_publish_statuses == {"42": "error"}
+            assert executor._publish_completed_kaderblick_games([(0, job)], 0) == 0
+            assert executor._publish_completed_kaderblick_games([(0, job)], 0) == 0
+
+        assert publish.call_count == 2
+        assert workflow.kaderblick_publish_statuses == {"42": "done"}
 
     @patch("src.runtime.workflow_executor.run_convert")
     def test_single_file_youtube_version_is_optional(self, mock_convert, tmp_path):
@@ -3769,5 +3883,3 @@ class TestOriginalPreservationWithoutConvert:
             mock_upload.assert_called_once()
             mock_kaderblick.assert_called_once()
             assert job.step_statuses["merge"] == "reused-target"
-
-
