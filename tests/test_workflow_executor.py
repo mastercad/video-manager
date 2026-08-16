@@ -2021,6 +2021,35 @@ class TestKaderblickPublish:
         assert failures == 0
         publish.assert_called_once()
 
+    def test_finished_validation_branch_does_not_block_publish(self):
+        job = self._job("Kamera", "42")
+        job.resume_status = "Kompatibilität prüfen …"
+        job.graph_nodes[1:1] = [
+            {"id": "check", "type": "validate_surface"},
+            {"id": "repair", "type": "repair"},
+        ]
+        job.graph_edges = [
+            {"source": "src", "target": "check"},
+            {"source": "check", "target": "repair", "source_port": "repairable"},
+            {"source": "check", "target": "yt", "source_port": "ok"},
+            {"source": "repair", "target": "yt"},
+            {"source": "yt", "target": "kb"},
+        ]
+        job.step_statuses["validate_surface"] = "ok"
+        workflow = Workflow(
+            jobs=[job],
+            started_job_ids=[job.id],
+            publish_kaderblick_videos=True,
+        )
+        executor = WorkflowExecutor(workflow, _make_settings(), active_indices={0})
+
+        with patch("src.runtime.workflow_executor.support.publish_game_videos", return_value={}) as publish:
+            failures = executor._publish_completed_kaderblick_games([(0, job)], 0)
+
+        assert failures == 0
+        publish.assert_called_once_with(executor._settings.kaderblick, "42")
+        assert workflow.kaderblick_publish_statuses == {"42": "done"}
+
     def test_failed_publish_is_retried_but_successful_publish_is_not(self):
         job = self._job("Kamera", "42")
         workflow = Workflow(

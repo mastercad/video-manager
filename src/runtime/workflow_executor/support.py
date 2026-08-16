@@ -90,9 +90,16 @@ class WorkflowExecutorSupportMixin:
             return 0
 
         for job in cohort:
-            if self._first_pending_step(job) is not None:
-                return 0
-            if job.id not in active_ids and not str(job.resume_status or "").startswith("Fertig"):
+            # Aktive Jobs haben die Pipeline an dieser Stelle bereits ohne Fehler
+            # beendet. Ihre per Signal aktualisierte resume_status-Anzeige kann im
+            # GUI-Thread noch hinterherhinken und darf den Publish nicht blockieren.
+            if job.id in active_ids:
+                continue
+            if not str(job.resume_status or "").startswith("Fertig"):
+                self.log_message.emit(
+                    f"⚠ Kaderblick-Publish ausstehend: '{job.name}' gehört zum gestarteten Lauf, "
+                    "ist aber noch nicht fertig."
+                )
                 return 0
 
         game_ids: set[str] = set()
@@ -104,6 +111,13 @@ class WorkflowExecutorSupportMixin:
                 game_id = ExecutorSupport.resolve_kaderblick_game_id(self._settings, job, explicit_id)
                 if game_id:
                     game_ids.add(game_id)
+
+        if not game_ids:
+            self.log_message.emit(
+                "⚠ Kaderblick-Publish nicht ausgeführt: Für die fertigen Kaderblick-Jobs "
+                "ist keine Spiel-ID konfiguriert."
+            )
+            return 0
 
         statuses = self._workflow.kaderblick_publish_statuses
         failures = 0
